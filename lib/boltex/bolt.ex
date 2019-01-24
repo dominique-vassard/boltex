@@ -9,13 +9,13 @@ defmodule Boltex.Bolt do
 
   @zero_chunk <<0x00, 0x00>>
 
-  @max_version 2
+  @max_version 3
 
   @summary ~w(success ignored failure)a
 
   @moduledoc """
-  A library that handles Bolt Protocol (v1 and v2).
-  Note that for now, only Neo4j implements Bolt v2.
+  A library that handles Bolt Protocol (v1, v2 and v3).
+  Note that for now, only Neo4j implements Bolt v2 and v3.
 
   It handles all the protocol specific steps (i.e.
   handshake, init) as well as sending and receiving messages and wrapping
@@ -95,8 +95,15 @@ defmodule Boltex.Bolt do
   ## Options
 
   See "Shared options" in the documentation of this module.
+
+  Returns an ok-tuple containing the bolt protocol version to be used.
+
+  ## Example:
+
+      iex> Bolt.handshake(:gen_tcp, port)
+      {:ok, 3}
   """
-  @spec handshake(atom(), port(), Keyword.t()) :: :ok | {:error, Boltex.Error.t()}
+  @spec handshake(atom(), port(), Keyword.t()) :: {:ok, integer()} | {:error, Boltex.Error.t()}
   def handshake(transport, port, options \\ []) do
     recv_timeout = get_recv_timeout(options)
 
@@ -120,7 +127,7 @@ defmodule Boltex.Bolt do
       {:ok, <<version::32>> = packet} when version <= @max_version ->
         Boltex.Logger.log_message(:server, :handshake, packet, :hex)
         Boltex.Logger.log_message(:server, :handshake, version)
-        :ok
+        {:ok, version}
 
       {:ok, other} ->
         {:error, Error.exception(other, port, :handshake)}
@@ -131,7 +138,7 @@ defmodule Boltex.Bolt do
   end
 
   @doc """
-  Initialises the connection.
+  Initialises the connection (Bolt v1 and v2).
 
   Expects a transport module (i.e. `gen_tcp`) and a `Port`. Accepts
   authorisation params in the form of {username, password}.
@@ -150,17 +157,51 @@ defmodule Boltex.Bolt do
   """
   @spec init(atom(), port(), tuple(), Keyword.t()) :: {:ok, any()} | {:error, Boltex.Error.t()}
   def init(transport, port, auth \\ {}, options \\ []) do
-    send_message(transport, port, {:init, [auth]})
+    initialize(:init, transport, port, auth, options)
+  end
+
+  @doc """
+  Initialises the connection (Bolt v3).
+
+  Expects a transport module (i.e. `gen_tcp`) and a `Port`. Accepts
+  authorisation params in the form of {username, password}.
+
+  ## Options
+
+  See "Shared options" in the documentation of this module.
+
+  ## Examples
+
+      iex> Boltex.Bolt.hello :gen_tcp, port
+      {:ok, info}
+
+      iex> Boltex.Bolt.hello :gen_tcp, port, {"username", "password"}
+      {:ok, info}
+  """
+  @spec hello(atom(), port(), tuple(), Keyword.t()) :: {:ok, any()} | {:error, Boltex.Error.t()}
+  def hello(transport, port, auth \\ {}, options \\ []) do
+    initialize(:hello, transport, port, auth, options)
+  end
+
+  @spec initialize(
+          Boltex.PackStream.Message.out_signature(),
+          atom(),
+          port(),
+          tuple(),
+          Keyword.t()
+        ) :: {:ok, any()} | {:error, Boltex.Error.t()}
+  defp initialize(signature, transport, port, auth, options) do
+    send_message(transport, port, {signature, [auth]})
 
     case receive_data(transport, port, options) do
       {:success, info} ->
         {:ok, info}
 
       {:failure, response} ->
-        {:error, Error.exception(response, port, :init)}
+        {:error, Error.exception(response, port, signature)}
 
       other ->
-        {:error, Error.exception(other, port, :init)}
+        {:error, Error.exception(other, port, signature)}
     end
   end
 
@@ -202,6 +243,35 @@ defmodule Boltex.Bolt do
           | Boltex.Error.t()
   def run_statement(transport, port, statement, params \\ %{}, options \\ []) do
     data = [statement, params]
+
+    with :ok <- send_message(transport, port, {:run, data}),
+         {:success, _} = data <- receive_data(transport, port, options),
+         :ok <- send_message(transport, port, {:pull_all, []}),
+         more_data <- receive_data(transport, port, options),
+         more_data = List.wrap(more_data),
+         {:success, _} <- List.last(more_data) do
+      [data | more_data]
+    else
+      {:failure, map} ->
+        Boltex.Error.exception(map, port, :run_statement)
+
+      error = %Boltex.Error{} ->
+        error
+
+      error ->
+        Boltex.Error.exception(error, port, :run_statement)
+    end
+  end
+
+  def run_statement_with_metadata(
+        transport,
+        port,
+        statement,
+        params \\ %{},
+        metadata \\ %{},
+        options \\ []
+      ) do
+    data = [statement, params, metadata]
 
     with :ok <- send_message(transport, port, {:run, data}),
          {:success, _} = data <- receive_data(transport, port, options),
@@ -291,7 +361,8 @@ defmodule Boltex.Bolt do
   @spec receive_data(atom(), port(), Keyword.t(), list()) ::
           {atom(), Boltex.PackStream.value()} | {:error, any()}
   def receive_data(transport, port, options \\ [], previous \\ []) do
-    with {:ok, data} <- do_receive_data(transport, port, options) do
+    with {:ok, data} <- do_receive_data(transport, port, options),
+         _ <- IO.puts(inspect(data)) do
       case Message.decode(data) do
         {:record, _} = data ->
           receive_data(transport, port, options, [data | previous])
@@ -318,7 +389,10 @@ defmodule Boltex.Bolt do
   defp do_receive_data(transport, port, options) do
     recv_timeout = get_recv_timeout(options)
 
-    case transport.recv(port, 2, recv_timeout) do
+    rec = transport.recv(port, 2, recv_timeout)
+    IO.puts(inspect(rec))
+
+    case rec do
       {:ok, <<chunk_size::16>>} ->
         do_receive_data_(transport, port, chunk_size, options, <<>>)
 

@@ -87,17 +87,18 @@ defmodule Boltex.BoltTest do
     end
   end
 
-  test "Temporal / patial types does not work prior to Neo4j 3.4", %{
-    port: port,
-    is_bolt_v2: is_bolt_v2
-  } do
-    test_bolt_v2(port, is_bolt_v2)
+  test "Temporal / spatial types does not work prior to bolt version 2",
+       %{
+         port: port,
+         bolt_version: bolt_version
+       } do
+    test_bolt_version(port, bolt_version)
   end
 
   @doc """
   Test valid returns for Bolt V1.
   """
-  def test_bolt_v2(port, false) do
+  def test_bolt_version(port, 1) do
     assert %Boltex.Error{type: :cypher_error} =
              Bolt.run_statement(:gen_tcp, port, "RETURN date('2018-01-01') as d")
 
@@ -175,7 +176,7 @@ defmodule Boltex.BoltTest do
   @doc """
   Test valid returns for Bolt V2.
   """
-  def test_bolt_v2(port, true) do
+  def test_bolt_version(port, _) do
     assert [
              success: %{"fields" => ["d"], "result_available_after" => _},
              record: [[sig: 68, fields: [17167]]],

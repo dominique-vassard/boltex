@@ -7,23 +7,19 @@ defmodule Boltex.IntegrationCase do
     uri = neo4j_uri()
     port_opts = [active: false, mode: :binary, packet: :raw]
     {:ok, port} = :gen_tcp.connect(uri.host, uri.port, port_opts)
-    :ok = Bolt.handshake(:gen_tcp, port)
+    {:ok, version} = Bolt.handshake(:gen_tcp, port)
 
-    # Neo4j 3.0 does'nt return serverr info on INIT
-    is_bolt_v2 =
-      case Bolt.init(:gen_tcp, port, uri.userinfo) do
-        {:ok, %{"server" => server}} ->
-          is_bolt_v2?(server)
-
-        {:ok, %{}} ->
-          false
+    result =
+      cond do
+        version == 3 -> Bolt.hello(:gen_tcp, port, uri.userinfo)
+        version < 3 -> Bolt.init(:gen_tcp, port, uri.userinfo)
       end
 
     on_exit(fn ->
       :gen_tcp.close(port)
     end)
 
-    {:ok, port: port, is_bolt_v2: is_bolt_v2}
+    {:ok, port: port, bolt_version: version}
   end
 
   def neo4j_uri do
@@ -40,17 +36,5 @@ defmodule Boltex.IntegrationCase do
         |> String.split(":")
         |> List.to_tuple()
     end)
-  end
-
-  defp is_bolt_v2?(server) do
-    regex = ~r/Neo4j\/(?<major>[\d])\.(?<minor>[\d])\.(?<maintenance>[\d])/
-    version_info = Regex.named_captures(regex, server)
-
-    if String.to_integer(version_info["major"]) >= 3 and
-         String.to_integer(version_info["minor"]) >= 4 do
-      true
-    else
-      false
-    end
   end
 end

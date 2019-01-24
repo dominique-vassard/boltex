@@ -16,6 +16,7 @@ defmodule Boltex.PackStream.Message.Encoder do
 
   @ack_failure_signature 0x0E
   @discard_all_signature 0x2F
+  @hello_signature 0x01
   @init_signature 0x01
   @pull_all_signature 0x3F
   @reset_signature 0x0F
@@ -48,6 +49,41 @@ defmodule Boltex.PackStream.Message.Encoder do
   """
   def encode({:init, [auth]}) do
     do_encode(:init, [@client_name, auth_params(auth)])
+  end
+
+  @doc """
+  Encode HELLO message without auth token;
+
+  HELLO message is similar to INIT but is used by Bolt protocol v3 and higher
+
+  ## Example:
+      iex(1)> Message.encode({:hello, [{"neo4j", "password"}]})
+      <<0, 77, 177, 1, 164, 139, 99, 114, 101, 100, 101, 110, 116, 105, 97, 108, 115,
+      136, 112, 97, 115, 115, 119, 111, 114, 100, 137, 112, 114, 105, 110, 99, 105,
+      112, 97, 108, 133, 110, 101, 111, 52, 106, 134, 115, 99, 104, 101, 109, 101,
+      133, ...>>
+  """
+  def encode({:hello, []}) do
+    encode({:hello, [{}]})
+  end
+
+  @doc """
+  Encode HELLO message with auth token
+
+  HELLO message is similar to INIT but is used by Bolt protocol v3 and higher
+
+  ## Example:
+      iex(1)> Message.encode({:hello, []})
+      <<0, 27, 177, 1, 161, 138, 117, 115, 101, 114, 95, 97, 103, 101, 110, 116, 140,
+      66, 111, 108, 116, 101, 120, 47, 48, 46, 53, 46, 48, 0, 0>>
+  """
+  def encode({:hello, [auth]}) do
+    params =
+      auth
+      |> auth_params()
+      |> Map.put(:user_agent, @client_name)
+
+    do_encode(:hello, [params])
   end
 
   @doc """
@@ -112,6 +148,7 @@ defmodule Boltex.PackStream.Message.Encoder do
   @spec signature(Boltex.PackStream.Message.out_signature()) :: integer()
   defp signature(:ack_failure), do: @ack_failure_signature
   defp signature(:discard_all), do: @discard_all_signature
+  defp signature(:hello), do: @hello_signature
   defp signature(:init), do: @init_signature
   defp signature(:pull_all), do: @pull_all_signature
   defp signature(:reset), do: @reset_signature

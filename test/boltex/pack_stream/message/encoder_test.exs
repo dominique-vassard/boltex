@@ -14,10 +14,16 @@ defmodule Boltex.PackStream.Message.EncoderTest do
     assert <<0x0, 0x2, 0xB0, 0x2F, 0x0, 0x0>> = Encoder.encode({:discard_all, []})
   end
 
-  test "init" do
-    assert <<0x0, 0x10, 0xB2, 0x1, _::binary>> = Encoder.encode({:init, []})
+  test "hello" do
+    assert <<0x0, _, 0xB1, 0x1, _::binary>> = Encoder.encode({:hello, []})
 
-    assert <<0x0, 0x42, 0xB2, 0x1, _::binary>> = Encoder.encode({:init, [{"neo4j", "password"}]})
+    assert <<0x0, _, 0xB1, 0x1, _::binary>> = Encoder.encode({:hello, [{"neo4j", "password"}]})
+  end
+
+  test "init" do
+    assert <<0x0, _, 0xB2, 0x1, _::binary>> = Encoder.encode({:init, []})
+
+    assert <<0x0, _, 0xB2, 0x1, _::binary>> = Encoder.encode({:init, [{"neo4j", "password"}]})
   end
 
   test "pull_all" do
