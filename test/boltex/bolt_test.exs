@@ -101,6 +101,12 @@ defmodule Boltex.BoltTest do
     end
   end
 
+  test "GOOBYE exists only in v3+", %{port: port, bolt_version: bolt_version} do
+    if bolt_version >= 3 do
+      assert :ok = Bolt.goodbye(:gen_tcp, port)
+    end
+  end
+
   test "Transactions work differently in v3", %{port: port, bolt_version: bolt_version} do
     test_transactions(port, bolt_version)
   end

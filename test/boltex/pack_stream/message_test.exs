@@ -18,8 +18,10 @@ defmodule Boltex.PackStream.MessageTest do
                Message.encode({:run, ["RETURN {num} AS num", %{num: 5}, %{tx_timeou: 5000}]})
 
       assert <<_::binary>> = Message.encode({:begin, []})
-      assert <<_::binary>> = Message.encode({:commit, [%{tx_timeout: 5000}]})
+      assert <<_::binary>> = Message.encode({:begin, [%{tx_timeout: 5000}]})
+      assert <<_::binary>> = Message.encode({:commit, []})
       assert <<_::binary>> = Message.encode({:rollback, []})
+      assert <<_::binary>> = Message.encode({:goodbye, []})
     end
   end
 

@@ -18,6 +18,7 @@ defmodule Boltex.PackStream.Message.Encoder do
   @begin_signature 0x11
   @commit_signature 0x12
   @discard_all_signature 0x2F
+  @goodbye_signature 0x02
   @hello_signature 0x01
   @init_signature 0x01
   @pull_all_signature 0x3F
@@ -200,6 +201,7 @@ defmodule Boltex.PackStream.Message.Encoder do
   defp signature(:begin), do: @begin_signature
   defp signature(:commit), do: @commit_signature
   defp signature(:discard_all), do: @discard_all_signature
+  defp signature(:goodbye), do: @goodbye_signature
   defp signature(:hello), do: @hello_signature
   defp signature(:init), do: @init_signature
   defp signature(:pull_all), do: @pull_all_signature

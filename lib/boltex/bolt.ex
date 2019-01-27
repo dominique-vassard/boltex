@@ -206,6 +206,27 @@ defmodule Boltex.Bolt do
     end
   end
 
+  @doc """
+  Implementation of Bolt's GOOBYE message. It closes the open connection.
+
+  This message does NOT receive response from server!
+
+  ## Options
+
+  See "Shared options" in the documentation of this module.
+  """
+  @spec goodbye(atom(), port()) :: :ok | Boltex.Error.t()
+  def goodbye(transport, port) do
+    send_message(transport, port, {:goodbye, []})
+
+    Port.close(port)
+
+    case Port.info(port) do
+      nil -> :ok
+      _ -> Boltex.Error.exception("Can't close port", port, :goodbye)
+    end
+  end
+
   @doc false
   # Sends a message using the Bolt protocol and PackStream encoding.
   #

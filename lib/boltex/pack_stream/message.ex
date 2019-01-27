@@ -15,6 +15,7 @@ defmodule Boltex.PackStream.Message do
           | :begin
           | :commit
           | :discard_all
+          | :goodbye
           | :hello
           | :init
           | :pull_all
