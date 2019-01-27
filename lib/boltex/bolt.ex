@@ -127,6 +127,7 @@ defmodule Boltex.Bolt do
       {:ok, <<version::32>> = packet} when version <= @max_version ->
         Boltex.Logger.log_message(:server, :handshake, packet, :hex)
         Boltex.Logger.log_message(:server, :handshake, version)
+        Boltex.VersionAgent.start_link(version)
         {:ok, version}
 
       {:ok, other} ->
@@ -241,38 +242,23 @@ defmodule Boltex.Bolt do
             Boltex.PackStream.Message.decoded()
           ]
           | Boltex.Error.t()
+
   def run_statement(transport, port, statement, params \\ %{}, options \\ []) do
     data = [statement, params]
-
-    with :ok <- send_message(transport, port, {:run, data}),
-         {:success, _} = data <- receive_data(transport, port, options),
-         :ok <- send_message(transport, port, {:pull_all, []}),
-         more_data <- receive_data(transport, port, options),
-         more_data = List.wrap(more_data),
-         {:success, _} <- List.last(more_data) do
-      [data | more_data]
-    else
-      {:failure, map} ->
-        Boltex.Error.exception(map, port, :run_statement)
-
-      error = %Boltex.Error{} ->
-        error
-
-      error ->
-        Boltex.Error.exception(error, port, :run_statement)
-    end
+    do_run_statement(transport, port, data, options)
   end
 
-  def run_statement_with_metadata(
-        transport,
-        port,
-        statement,
-        params \\ %{},
-        metadata \\ %{},
-        options \\ []
-      ) do
+  @spec run_statement_with_metadata(atom(), port(), String.t(), map(), map(), Keyword.t()) ::
+          [
+            Boltex.PackStream.Message.decoded()
+          ]
+          | Boltex.Error.t()
+  def run_statement_with_metadata(transport, port, statement, params, metadata, options \\ []) do
     data = [statement, params, metadata]
+    do_run_statement(transport, port, data, options)
+  end
 
+  defp do_run_statement(transport, port, data, options) do
     with :ok <- send_message(transport, port, {:run, data}),
          {:success, _} = data <- receive_data(transport, port, options),
          :ok <- send_message(transport, port, {:pull_all, []}),
@@ -361,8 +347,7 @@ defmodule Boltex.Bolt do
   @spec receive_data(atom(), port(), Keyword.t(), list()) ::
           {atom(), Boltex.PackStream.value()} | {:error, any()}
   def receive_data(transport, port, options \\ [], previous \\ []) do
-    with {:ok, data} <- do_receive_data(transport, port, options),
-         _ <- IO.puts(inspect(data)) do
+    with {:ok, data} <- do_receive_data(transport, port, options) do
       case Message.decode(data) do
         {:record, _} = data ->
           receive_data(transport, port, options, [data | previous])
@@ -390,7 +375,6 @@ defmodule Boltex.Bolt do
     recv_timeout = get_recv_timeout(options)
 
     rec = transport.recv(port, 2, recv_timeout)
-    IO.puts(inspect(rec))
 
     case rec do
       {:ok, <<chunk_size::16>>} ->

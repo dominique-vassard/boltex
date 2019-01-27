@@ -89,6 +89,15 @@ defmodule Boltex.PackStream.Message.Encoder do
   @doc """
   Encode RUN message with its data: statement and parameters
 
+  RUN takes only 2 parameters in V2:
+  - the statement to execute
+  - the statement binds
+
+  RUN takes 3 parameters in V3:
+  - the statement to execute
+  - the statement binds
+  - metadata
+
   ## Example
       iex> Message.encode({:run, ["RETURN 1 AS num"]})
       <<0, 19, 178, 16, 143, 82, 69, 84, 85, 82, 78, 32, 49, 32, 65, 83, 32, 110, 117,
@@ -99,8 +108,12 @@ defmodule Boltex.PackStream.Message.Encoder do
 
   """
 
-  def encode({:run, [statement]}) do
-    do_encode(:run, [statement, %{}])
+  def encode({:run, [_statement]} = message) do
+    encode_run(message, Boltex.VersionAgent.get())
+  end
+
+  def encode({:run, [_statment, _params]} = message) do
+    encode_run(message, Boltex.VersionAgent.get())
   end
 
   @doc """
@@ -118,6 +131,24 @@ defmodule Boltex.PackStream.Message.Encoder do
   """
   def encode({message_type, data}) do
     do_encode(message_type, data)
+  end
+
+  @spec encode_run({Boltex.PackStream.Message.out_signature(), list()}, integer()) ::
+          Boltex.PackStream.Message.encoded()
+  defp encode_run({:run, [statement]}, bolt_version) when bolt_version <= 2 do
+    do_encode(:run, [statement, %{}])
+  end
+
+  defp encode_run({:run, [statement]}, _) do
+    do_encode(:run, [statement, %{}, %{}])
+  end
+
+  defp encode_run({:run, [statement, params]}, bolt_version) when bolt_version <= 2 do
+    do_encode(:run, [statement, params])
+  end
+
+  defp encode_run({:run, [statement, params]}, _) do
+    do_encode(:run, [statement, params, %{}])
   end
 
   @spec do_encode(Boltex.PackStream.Message.out_signature(), list()) ::
