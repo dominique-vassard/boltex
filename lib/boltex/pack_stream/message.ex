@@ -10,7 +10,17 @@ defmodule Boltex.PackStream.Message do
   alias Boltex.PackStream.Message.Decoder
 
   @type in_signature :: :failure | :ignored | :record | :success
-  @type out_signature :: :ack_failure | :discard_all | :hello | :init | :pull_all | :reset | :run
+  @type out_signature ::
+          :ack_failure
+          | :begin
+          | :commit
+          | :discard_all
+          | :hello
+          | :init
+          | :pull_all
+          | :reset
+          | :rollback
+          | :run
   @type raw :: {out_signature, list()}
   @type decoded :: {in_signature(), any()}
   @type encoded :: <<_::16, _::_*8>>

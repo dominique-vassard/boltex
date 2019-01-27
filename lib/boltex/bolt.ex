@@ -290,12 +290,7 @@ defmodule Boltex.Bolt do
   """
   @spec ack_failure(atom(), port(), Keyword.t()) :: :ok | Boltex.Error.t()
   def ack_failure(transport, port, options \\ []) do
-    send_message(transport, port, {:ack_failure, []})
-
-    case receive_data(transport, port, options) do
-      {:success, %{}} -> :ok
-      error -> Boltex.Error.exception(error, port, :ack_failure)
-    end
+    treat_simple_message(:ack_failure, transport, port, options)
   end
 
   @doc """
@@ -310,11 +305,76 @@ defmodule Boltex.Bolt do
   """
   @spec reset(atom(), port(), Keyword.t()) :: :ok | Boltex.Error.t()
   def reset(transport, port, options \\ []) do
-    send_message(transport, port, {:reset, []})
+    treat_simple_message(:reset, transport, port, options)
+  end
+
+  @doc """
+  Implementation of Bolt's BEGIN message. It opens a transaction.
+
+  ## Options
+
+  See "Shared options" in the documentation of this module.
+  """
+  @spec begin(atom(), port(), map(), Keyword.t()) :: :ok | Boltex.Error.t()
+  def begin(transport, port, metadata \\ %{}, options \\ []) do
+    with {:ok, begin_metadata} <- Boltex.Metadata.new(metadata) do
+      send_message(
+        transport,
+        port,
+        {:begin, [begin_metadata]}
+      )
+
+      case receive_data(transport, port, options) do
+        {:success, %{}} -> :ok
+        error -> Boltex.Error.exception(error, port, :begin)
+      end
+    else
+      {:error, error} -> Boltex.Error.exception(error, port, :begin)
+    end
+  end
+
+  @doc """
+  Implementation of Bolt's COMMIT message. It commits an opened transaction.
+
+  ## Options
+
+  See "Shared options" in the documentation of this module.
+  """
+  @spec commit(atom(), port(), Keyword.t()) :: :ok | Boltex.Error.t()
+  def commit(transport, port, options \\ []) do
+    send_message(transport, port, {:commit, []})
+
+    case receive_data(transport, port, options) do
+      {:success, metadata} -> {:success, metadata}
+      error -> Boltex.Error.exception(error, port, :commit)
+    end
+  end
+
+  @doc """
+  Implementation of Bolt's ROLLBACK message. It rollbacks an opened transaction.
+
+  ## Options
+
+  See "Shared options" in the documentation of this module.
+  """
+  @spec rollback(atom(), port(), Keyword.t()) :: :ok | Boltex.Error.t()
+  def rollback(transport, port, options \\ []) do
+    treat_simple_message(:rollback, transport, port, options)
+  end
+
+  # Manage the sending and receiving of message:
+  #  - without parameters
+  #  - with only SUCCESS {} as result
+  #
+  # there fore, only `:ok` is sent back as a valid result
+  @spec treat_simple_message(Message.out_signature(), atom(), port(), Keyword.t()) ::
+          :ok | Boltex.Error.t()
+  defp treat_simple_message(signature, transport, port, options) do
+    send_message(transport, port, {signature, []})
 
     case receive_data(transport, port, options) do
       {:success, %{}} -> :ok
-      error -> Boltex.Error.exception(error, port, :reset)
+      error -> Boltex.Error.exception(error, port, signature)
     end
   end
 

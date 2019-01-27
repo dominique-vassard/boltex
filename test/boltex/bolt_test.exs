@@ -34,6 +34,7 @@ defmodule Boltex.BoltTest do
     assert %Boltex.Error{type: :cypher_error} = Bolt.run_statement(:gen_tcp, port, "What?")
   end
 
+  # ACK_FAILURE doesn't exists in Bolt V3!
   test "allows to recover from error with ack_failure for bolt v1 & v2", %{
     port: port,
     bolt_version: bolt_version
@@ -45,7 +46,6 @@ defmodule Boltex.BoltTest do
     end
   end
 
-  # RESET doesn't exists in Bolt V3!
   test "allows to recover from error with reset", %{
     port: port
   } do
@@ -101,7 +101,8 @@ defmodule Boltex.BoltTest do
     end
   end
 
-  test "Transactions work differently in v3", %{port: _port, bolt_version: _bolt_version} do
+  test "Transactions work differently in v3", %{port: port, bolt_version: bolt_version} do
+    test_transactions(port, bolt_version)
   end
 
   test "Temporal / spatial types does not work prior to bolt version 2",
@@ -124,7 +125,23 @@ defmodule Boltex.BoltTest do
     assert [{:success, _}, {:success, _}] = Bolt.run_statement(:gen_tcp, port, "ROLLBACK")
   end
 
-  def test_transactions(_port, _) do
+  def test_transactions(port, _) do
+    # Simple transaction
+    assert :ok = Bolt.begin(:gen_tcp, port)
+    assert [{:success, _} | _] = Bolt.run_statement(:gen_tcp, port, "RETURN 1 as num")
+    assert {:success, %{"bookmark" => _}} = Bolt.commit(:gen_tcp, port)
+
+    # Transaction with metadata
+    assert :ok = Bolt.begin(:gen_tcp, port, %{bookmarks: ["neo4j:bookmark:v1:tx111"]})
+
+    assert [{:success, _} | _] = Bolt.run_statement(:gen_tcp, port, "RETURN 1 as num")
+    assert {:success, %{"bookmark" => _}} = Bolt.commit(:gen_tcp, port)
+
+    # Rollback transaction
+    assert :ok = Bolt.begin(:gen_tcp, port, %{bookmarks: ["neo4j:bookmark:v1:tx111"]})
+
+    assert [{:success, _} | _] = Bolt.run_statement(:gen_tcp, port, "RETURN 1 as num")
+    assert :ok = Bolt.rollback(:gen_tcp, port)
   end
 
   @doc """

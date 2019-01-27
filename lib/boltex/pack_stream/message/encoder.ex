@@ -15,11 +15,14 @@ defmodule Boltex.PackStream.Message.Encoder do
   @end_marker <<0x00, 0x00>>
 
   @ack_failure_signature 0x0E
+  @begin_signature 0x11
+  @commit_signature 0x12
   @discard_all_signature 0x2F
   @hello_signature 0x01
   @init_signature 0x01
   @pull_all_signature 0x3F
   @reset_signature 0x0F
+  @rollback_signature 0x13
   @run_signature 0x10
 
   @doc """
@@ -73,7 +76,7 @@ defmodule Boltex.PackStream.Message.Encoder do
   HELLO message is similar to INIT but is used by Bolt protocol v3 and higher
 
   ## Example:
-      iex(1)> Message.encode({:hello, []})
+      iex> Message.encode({:hello, []})
       <<0, 27, 177, 1, 161, 138, 117, 115, 101, 114, 95, 97, 103, 101, 110, 116, 140,
       66, 111, 108, 116, 101, 120, 47, 48, 46, 53, 46, 48, 0, 0>>
   """
@@ -84,6 +87,22 @@ defmodule Boltex.PackStream.Message.Encoder do
       |> Map.put(:user_agent, @client_name)
 
     do_encode(:hello, [params])
+  end
+
+  @doc """
+  Encode BEGIN message without metadata.
+
+  COMMIT is used to open a transaction
+  """
+  def encode({:begin, []}) do
+    encode({:begin, [%{}]})
+  end
+
+  @doc """
+  Encode BEGIN message with metadata
+  """
+  def encode({:begin, [%Boltex.Metadata{} = metadata]}) do
+    encode({:begin, [Boltex.Metadata.to_map(metadata)]})
   end
 
   @doc """
@@ -178,11 +197,14 @@ defmodule Boltex.PackStream.Message.Encoder do
 
   @spec signature(Boltex.PackStream.Message.out_signature()) :: integer()
   defp signature(:ack_failure), do: @ack_failure_signature
+  defp signature(:begin), do: @begin_signature
+  defp signature(:commit), do: @commit_signature
   defp signature(:discard_all), do: @discard_all_signature
   defp signature(:hello), do: @hello_signature
   defp signature(:init), do: @init_signature
   defp signature(:pull_all), do: @pull_all_signature
   defp signature(:reset), do: @reset_signature
+  defp signature(:rollback), do: @rollback_signature
   defp signature(:run), do: @run_signature
 
   @spec generate_chunks(Boltex.PackStream.value() | <<>>, list()) ::

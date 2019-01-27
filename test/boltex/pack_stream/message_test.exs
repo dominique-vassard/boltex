@@ -1,9 +1,9 @@
 defmodule Boltex.PackStream.MessageTest do
-  use ExUnit.Case, async: true
+  use Boltex.IntegrationCase, async: true
 
   alias Boltex.PackStream.Message
 
-  test "Encode messages" do
+  test "Encode messages", %{bolt_version: bolt_version} do
     assert <<_::binary>> = Message.encode({:ack_failure, []})
     assert <<_::binary>> = Message.encode({:discard_all, []})
     assert <<_::binary>> = Message.encode({:init, []})
@@ -12,6 +12,15 @@ defmodule Boltex.PackStream.MessageTest do
     assert <<_::binary>> = Message.encode({:reset, []})
     assert <<_::binary>> = Message.encode({:run, ["RETURN 1 AS num"]})
     assert <<_::binary>> = Message.encode({:run, ["RETURN {num} AS num", %{num: 5}]})
+
+    if bolt_version >= 3 do
+      assert <<_::binary>> =
+               Message.encode({:run, ["RETURN {num} AS num", %{num: 5}, %{tx_timeou: 5000}]})
+
+      assert <<_::binary>> = Message.encode({:begin, []})
+      assert <<_::binary>> = Message.encode({:commit, [%{tx_timeout: 5000}]})
+      assert <<_::binary>> = Message.encode({:rollback, []})
+    end
   end
 
   test "Decodes message" do
