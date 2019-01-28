@@ -26,8 +26,8 @@ defmodule Boltex.Mixfile do
   # Type "mix help compile.app" for more information
   def application do
     [
-      # mod: {Boltex, []},
-      applications: [:logger]
+      applications: [:logger],
+      mod: {Boltex, []}
     ]
   end
 

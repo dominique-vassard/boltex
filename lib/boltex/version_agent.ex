@@ -7,11 +7,11 @@ defmodule Boltex.VersionAgent do
   use Agent
 
   @doc """
-  Start the agent with current protocol version
+  Start the agent with a default protocol version (version 1)
   """
-  @spec start_link(integer()) :: {:error, any()} | {:ok, pid()}
-  def start_link(version) do
-    Agent.start_link(fn -> version end, name: __MODULE__)
+  @spec start_link(any()) :: {:error, any()} | {:ok, pid()}
+  def start_link(_) do
+    Agent.start_link(fn -> 1 end, name: __MODULE__)
   end
 
   @doc """
@@ -20,5 +20,13 @@ defmodule Boltex.VersionAgent do
   @spec get() :: integer()
   def get() do
     Agent.get(__MODULE__, & &1)
+  end
+
+  @doc """
+  Set the current protocol version
+  """
+  @spec set(integer()) :: :ok
+  def set(version) do
+    Agent.update(__MODULE__, fn _ -> version end)
   end
 end

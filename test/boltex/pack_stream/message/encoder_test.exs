@@ -1,6 +1,5 @@
 defmodule Boltex.PackStream.Message.EncoderTest do
-  # use ExUnit.Case, async: true
-  use Boltex.EncoderCase, async: true
+  use ExUnit.Case, async: true
   alias Boltex.PackStream.Message.Encoder
 
   defmodule TestUser do
@@ -55,11 +54,14 @@ defmodule Boltex.PackStream.Message.EncoderTest do
     assert <<0x0, 0x2, 0xB0, 0x13, 0x0, 0x0>> = Encoder.encode({:rollback, []})
   end
 
-  test "run", %{bolt_version: bolt_version} do
-    assert result_run_without_params(bolt_version) == Encoder.encode({:run, ["RETURN 1 AS num"]})
+  test "run" do
+    for version <- [1..3] do
+      Boltex.VersionAgent.set(version)
+      assert result_run_without_params(version) == Encoder.encode({:run, ["RETURN 1 AS num"]})
 
-    assert result_run_with_params(bolt_version) ==
-             Encoder.encode({:run, ["RETURN {num} AS num", %{num: 5}]})
+      assert result_run_with_params(version) ==
+               Encoder.encode({:run, ["RETURN {num} AS num", %{num: 5}]})
+    end
   end
 
   defp result_run_without_params(bolt_version) when bolt_version <= 2 do

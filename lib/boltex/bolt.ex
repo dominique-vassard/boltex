@@ -127,7 +127,7 @@ defmodule Boltex.Bolt do
       {:ok, <<version::32>> = packet} when version <= @max_version ->
         Boltex.Logger.log_message(:server, :handshake, packet, :hex)
         Boltex.Logger.log_message(:server, :handshake, version)
-        Boltex.VersionAgent.start_link(version)
+        Boltex.VersionAgent.set(version)
         {:ok, version}
 
       {:ok, other} ->

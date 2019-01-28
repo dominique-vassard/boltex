@@ -3,8 +3,30 @@ defmodule Boltex do
   #
   # It supports de- and encoding of Boltex binaries and sending and receiving
   # of data using the Bolt protocol.
-
+  use Application
   alias Boltex.Bolt
+
+  # def start_link(opts) do
+  #   Supervisor.start_link(__MODULE__, opts, name: __MODULE__)
+  # end
+
+  # @impl true
+  # def init(_args) do
+  #   children = [
+  #     Boltex.VersionAgent
+  #   ]
+
+  #   Supervisor.init(children, strategy: :one_for_one)
+  # end
+
+  def start(_type, _args) do
+    children = [
+      {Boltex.VersionAgent, []}
+    ]
+
+    opts = [strategy: :one_for_one, name: __MODULE__]
+    Supervisor.start_link(children, opts)
+  end
 
   @doc """
   A simple function to test the library
