@@ -23,8 +23,15 @@ defmodule Boltex do
   def test(host, port, query, params \\ %{}, auth \\ {}) do
     {:ok, p} = :gen_tcp.connect(host, port, active: false, mode: :binary, packet: :raw)
 
-    :ok = Bolt.handshake(:gen_tcp, p)
-    {:ok, _info} = Bolt.init(:gen_tcp, p, auth)
+    {:ok, version} = Bolt.handshake(:gen_tcp, p)
+
+    case version do
+      3 ->
+        {:ok, _info} = Bolt.hello(:gen_tcp, p, auth)
+
+      _ ->
+        {:ok, _info} = Bolt.init(:gen_tcp, p, auth)
+    end
 
     Bolt.run_statement(:gen_tcp, p, query, params)
   end
