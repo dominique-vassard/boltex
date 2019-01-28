@@ -9,6 +9,8 @@ defmodule Boltex.PackStream.Message.Encoder do
   #   - message_type: atom amongst the valid message type (:init, :discard_all, :pull_all, :ack_failure, :reset, :run)
   #   - data: a list of data to be used by the message
 
+  alias Boltex.Metadata
+
   @client_name "Boltex/0.5.0"
 
   @max_chunk_size 65_535
@@ -102,8 +104,8 @@ defmodule Boltex.PackStream.Message.Encoder do
   @doc """
   Encode BEGIN message with metadata
   """
-  def encode({:begin, [%Boltex.Metadata{} = metadata]}) do
-    encode({:begin, [Boltex.Metadata.to_map(metadata)]})
+  def encode({:begin, [%Metadata{} = metadata]}) do
+    encode({:begin, [Metadata.to_map(metadata)]})
   end
 
   @doc """
@@ -132,8 +134,12 @@ defmodule Boltex.PackStream.Message.Encoder do
     encode_run(message, Boltex.VersionAgent.get())
   end
 
-  def encode({:run, [_statment, _params]} = message) do
+  def encode({:run, [_statement, _params]} = message) do
     encode_run(message, Boltex.VersionAgent.get())
+  end
+
+  def encode({:run, [statement, params, %Metadata{} = metadata]}) do
+    do_encode(:run, [statement, params, Metadata.to_map(metadata)])
   end
 
   @doc """

@@ -269,14 +269,42 @@ defmodule Boltex.Bolt do
     do_run_statement(transport, port, data, options)
   end
 
+  @doc """
+  RUN message that accepts metadata.
+  Available since Bolt v3.
+
+  Runs a statement (most likely Cypher statement) and returns a list of the
+  records and a summary (Act as as a RUN + PULL_ALL).
+
+  Records are represented using PackStream's record data type. Their Elixir
+  representation is a Keyword with the indexes `:sig` and `:fields`.
+
+  ## Options
+
+  See "Shared options" in the documentation of this module.
+
+  ## Examples
+
+      iex> Boltex.Bolt.run_statement("MATCH (n {uuid: {uuid}}) RETURN n",
+           %{uuid: 5}, %{bookmarks: ["neo4j:bookmark:v1:tx3234"]})
+      [
+        {:success, %{"fields" => ["n"]}},
+        {:record, [sig: 1, fields: [1, "Example", "Labels", %{"some_attribute" => "some_value"}]]},
+        {:success, %{"type" => "r"}}
+      ]
+  """
   @spec run_statement_with_metadata(atom(), port(), String.t(), map(), map(), Keyword.t()) ::
           [
             Boltex.PackStream.Message.decoded()
           ]
           | Boltex.Error.t()
   def run_statement_with_metadata(transport, port, statement, params, metadata, options \\ []) do
-    data = [statement, params, metadata]
-    do_run_statement(transport, port, data, options)
+    with {:ok, run_metadata} <- Boltex.Metadata.new(metadata) do
+      data = [statement, params, run_metadata]
+      do_run_statement(transport, port, data, options)
+    else
+      {:error, error} -> Boltex.Error.exception(error, port, :begin)
+    end
   end
 
   defp do_run_statement(transport, port, data, options) do

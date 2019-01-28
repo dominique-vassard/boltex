@@ -1,7 +1,6 @@
 defmodule BoltexTest do
   use ExUnit.Case
 
-  alias Boltex.Bolt
   alias Boltex.UriHelper
 
   test "it works" do
