@@ -20,8 +20,10 @@ defmodule Boltex do
   # end
 
   def start(_type, _args) do
+    import Supervisor.Spec
+
     children = [
-      {Boltex.VersionAgent, []}
+      worker(Boltex.VersionAgent, [])
     ]
 
     opts = [strategy: :one_for_one, name: __MODULE__]

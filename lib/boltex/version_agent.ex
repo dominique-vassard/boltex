@@ -4,13 +4,12 @@ defmodule Boltex.VersionAgent do
   Boltex user shouldn't be forced to store and pass protocol version to function,
   therefore we store it here
   """
-  use Agent
 
   @doc """
   Start the agent with a default protocol version (version 1)
   """
-  @spec start_link(any()) :: {:error, any()} | {:ok, pid()}
-  def start_link(_) do
+  @spec start_link() :: {:error, any()} | {:ok, pid()}
+  def start_link() do
     Agent.start_link(fn -> 1 end, name: __MODULE__)
   end
 
