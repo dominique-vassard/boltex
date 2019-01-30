@@ -1,5 +1,9 @@
 # Changelog
 
+## v 0.6.0
+* Improvment
+  * Bolt V3 support
+
 ## v0.5.1
 * Fixes
   * A struct in a list is now well encoded
