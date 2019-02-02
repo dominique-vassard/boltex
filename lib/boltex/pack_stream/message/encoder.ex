@@ -139,7 +139,11 @@ defmodule Boltex.PackStream.Message.Encoder do
   end
 
   def encode({:run, [statement, params, %Metadata{} = metadata]}) do
-    do_encode(:run, [statement, params, Metadata.to_map(metadata)])
+    if Boltex.VersionAgent.get() >= 3 do
+      do_encode(:run, [statement, params, Metadata.to_map(metadata)])
+    else
+      do_encode(:run, [statement, params])
+    end
   end
 
   @doc """

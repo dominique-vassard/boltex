@@ -66,4 +66,23 @@ defmodule Boltex.MetadataTest do
       assert expected == result
     end
   end
+
+  test "to_map remove nullified data" do
+    data = %{
+      bookmarks: ["neo4j:bookmark:v1:tx1111"],
+      tx_timeout: 5000
+    }
+
+    assert {:ok, metadata} = Metadata.new(data)
+
+    assert %Metadata{bookmarks: ["neo4j:bookmark:v1:tx1111"], metadata: nil, tx_timeout: 5000} ==
+             metadata
+
+    expected = %{
+      bookmarks: ["neo4j:bookmark:v1:tx1111"],
+      tx_timeout: 5000
+    }
+
+    assert expected == Metadata.to_map(metadata)
+  end
 end

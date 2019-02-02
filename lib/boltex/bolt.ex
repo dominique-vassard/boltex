@@ -219,11 +219,11 @@ defmodule Boltex.Bolt do
   def goodbye(transport, port) do
     send_message(transport, port, {:goodbye, []})
 
-    Port.close(port)
-
-    case Port.info(port) do
-      nil -> :ok
-      _ -> Boltex.Error.exception("Can't close port", port, :goodbye)
+    try do
+      Port.close(port)
+      :ok
+    rescue
+      ArgumentError -> Boltex.Error.exception("Can't close port", port, :goodbye)
     end
   end
 
@@ -303,7 +303,7 @@ defmodule Boltex.Bolt do
       data = [statement, params, run_metadata]
       do_run_statement(transport, port, data, options)
     else
-      {:error, error} -> Boltex.Error.exception(error, port, :begin)
+      {:error, error} -> Boltex.Error.exception(error, port, :run)
     end
   end
 

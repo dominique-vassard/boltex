@@ -83,32 +83,75 @@ defmodule Boltex.BoltTest do
     end
   end
 
-  test "RUN with metadata (Bolt >= 3)", %{port: port, bolt_version: bolt_version} do
-    if bolt_version >= 3 do
-      assert [{:success, _}, {:record, _}, {:success, _}] =
-               Bolt.run_statement_with_metadata(:gen_tcp, port, "RETURN 1 AS num", %{}, %{})
+  test "RUN with metadata (Bolt >= 3), in bolt < 3 metadata are stripped", %{
+    port: port
+  } do
+    assert [{:success, _}, {:record, _}, {:success, _}] =
+             Bolt.run_statement_with_metadata(:gen_tcp, port, "RETURN 1 AS num", %{}, %{})
 
-      metadata = %{
-        tx_timeout: 1000,
-        # bookmarks: ["neo4j:bookmark:v1:tx2"],  Bookmark is causing timeout
-        tx_metadata: %{
-          name: "my_tx"
-        }
+    metadata = %{
+      tx_timeout: 1000,
+      # bookmarks: ["neo4j:bookmark:v1:tx2"],  Bookmark is causing timeout
+      tx_metadata: %{
+        name: "my_tx"
       }
+    }
 
-      assert [{:success, _}, {:record, _}, {:success, _}] =
-               Bolt.run_statement_with_metadata(:gen_tcp, port, "RETURN 1 AS num", %{}, metadata)
-    end
+    assert [{:success, _}, {:record, _}, {:success, _}] =
+             Bolt.run_statement_with_metadata(:gen_tcp, port, "RETURN 1 AS num", %{}, metadata)
   end
 
-  test "GOOBYE exists only in v3+", %{port: port, bolt_version: bolt_version} do
-    if bolt_version >= 3 do
-      assert :ok = Bolt.goodbye(:gen_tcp, port)
-    end
+  test "RUN with metadata fails with erroneous metadata", %{port: port} do
+    invalid = %{
+      tx_timeout: -5
+    }
+
+    assert %Boltex.Error{} =
+             Bolt.run_statement_with_metadata(:gen_tcp, port, "RETURN 1 AS num", %{}, invalid)
+  end
+
+  test "GOOBYE exists only in v3+ but has no impact on other version", %{
+    port: port
+    # bolt_version: bolt_version
+  } do
+    # if bolt_version >= 3 do
+    assert :ok = Bolt.goodbye(:gen_tcp, port)
+    # end
+  end
+
+  test "GOODBYE fails if port is already closed", %{port: port} do
+    Port.close(port)
+    assert %Boltex.Error{} = Bolt.goodbye(:gen_tcp, port)
   end
 
   test "Transactions work differently in v3", %{port: port, bolt_version: bolt_version} do
     test_transactions(port, bolt_version)
+  end
+
+  test "BEGIN fails in Bolt version < 3", %{port: port, bolt_version: bolt_version} do
+    if bolt_version < 3 do
+      assert %Boltex.Error{} = Bolt.begin(:gen_tcp, port)
+    end
+  end
+
+  test "BEGIN fails if metadata are erroneous", %{port: port} do
+    invalid = %{
+      tx_timeout: -5
+    }
+
+    assert %Boltex.Error{} = Bolt.begin(:gen_tcp, port, invalid)
+  end
+
+  test "COMMIT fails in Bolt version < 3", %{port: port, bolt_version: bolt_version} do
+    if bolt_version < 3 do
+      assert %Boltex.Error{} = Bolt.commit(:gen_tcp, port)
+    end
+  end
+
+  test "ROLLBACK fails in Bolt version < 3", %{port: port, bolt_version: bolt_version} do
+    if bolt_version < 3 do
+      assert %Boltex.Error{} = Bolt.rollback(:gen_tcp, port)
+    end
   end
 
   test "Temporal / spatial types does not work prior to bolt version 2",
